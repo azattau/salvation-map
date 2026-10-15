@@ -2,3 +2,6 @@
 
 /* Reading sizes for operator panels. */
 .upload-panel h2{font-size:16px}.dropzone strong{font-size:12px}.dropzone>span:last-of-type{font-size:10px}.upload-options label{font-size:10px}.upload-options input,.upload-options select{font-size:11px}.primary{font-size:13px}.demo-row,.demo-row button{font-size:10px}.analysis-status{font-size:11px}.hint{font-size:10px}.legend-grid>span{font-size:10px}.legend-heading h2{font-size:12px}.legend-heading>span{font-size:9px}.legend-footer{font-size:10px}.time-title strong{font-size:12px}.time-labels{font-size:9px}@media(max-width:760px){.legend-grid>span{font-size:9px}.time-labels{font-size:8px}.time-title strong{font-size:11px}}
+
+/* Compact map controls and analysis preferences. */
+.upload-panel .primary{margin-top:16px}.analysis-options{display:grid;grid-template-columns:1fr 1.15fr;gap:12px;margin:16px 0 0}dialog .analysis-options label{margin:0}dialog .analysis-options select{font-size:12px;min-height:37px}dialog{max-height:calc(100dvh - 32px);overflow:auto}@media(max-width:450px){.analysis-options{grid-template-columns:1fr}}

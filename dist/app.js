@@ -3,7 +3,6 @@
 const C = IncidentCore, $ = id => document.getElementById(id);
 const state = {events:[], index:null, reference:Date.now(), file:null, filter:'all',busy:false,modelReady:false};
 const fmt = new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Yekaterinburg',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-const clockFmt = new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Yekaterinburg',hour:'2-digit',minute:'2-digit'});
 const safeText = (tag,text,className) => { const el=document.createElement(tag); el.textContent=text; if(className) el.className=className; return el; };
 const dateInZone = date => new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Yekaterinburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
 $('base-date').value = dateInZone(new Date());
@@ -12,10 +11,10 @@ function getLocalURL() {
   if (!['http:','https:'].includes(url.protocol) || !['127.0.0.1','localhost','[::1]'].includes(url.hostname) || url.username || url.password) throw new Error('Укажите адрес локального помощника: http://127.0.0.1:8765');
   return url.origin;
 }
-try { const prefs=JSON.parse(localStorage.getItem('svodka-prefs') || '{}'); if(prefs.url) $('local-url').value=prefs.url; if(prefs.model) $('model-name').value=prefs.model; } catch { /* storage can be unavailable */ }
+try { const prefs=JSON.parse(localStorage.getItem('svodka-prefs') || '{}'); if(prefs.url) $('local-url').value=prefs.url; if(prefs.model) $('model-name').value=prefs.model; if(['llm','dictionary'].includes(prefs.engine)) $('engine').value=prefs.engine; } catch { /* storage can be unavailable */ }
 function toast(text) { $('toast').textContent=text; $('toast').hidden=false; clearTimeout(state.toastTimer); state.toastTimer=setTimeout(()=>{$('toast').hidden=true;},5000); }
 function setStatus(text,error=false){$('analysis-status').textContent=text;$('analysis-status').classList.toggle('error',error);}
-function setBusy(busy){state.busy=busy;$('analyze-btn').disabled=busy||!state.file||!state.index;$('demo-btn').disabled=busy;$('file-input').disabled=busy;$('engine').disabled=busy;$('base-date').disabled=busy;$('analysis-progress').hidden=!busy;}
+function setBusy(busy){state.busy=busy;$('analyze-btn').disabled=busy||!state.file||!state.index;$('file-input').disabled=busy;$('engine').disabled=busy;$('base-date').disabled=busy;$('analysis-progress').hidden=!busy;}
 const map = L.map('map',{zoomControl:false,minZoom:3,preferCanvas:true}).setView([55,58],6);
 L.control.zoom({position:'topright'}).addTo(map);
 const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(map);
@@ -49,23 +48,19 @@ function drawMarkers(){
     marker.bindPopup(()=>popupFor(group),{maxWidth:330,minWidth:250,maxHeight:370});marker.addTo(markers);
   }
 }
-function updateCounts(){const located=state.events.filter(e=>e.status==='located').length;$('total-count').textContent=state.events.length;$('journal-count').textContent=state.events.length;$('located-count').textContent=located;$('review-count').textContent=state.events.length-located;}
-function updateReference(){state.reference=Number($('timeline').value);$('reference-label').textContent=fmt.format(state.reference);drawMarkers();}
-function initTimeline(){
+function updateCounts(){$('journal-count').textContent=state.events.length;}
+function setReferenceFromEvents(){
   const times=state.events.map(e=>e.timestamp).filter(t=>t!==null&&Number.isFinite(t));
-  if(!times.length){$('timeline').disabled=true;$('reference-label').textContent='Нет сообщений со временем';$('timeline-start').textContent='—';$('timeline-end').textContent='—';return;}
-  const min=Math.min(...times)-60000,max=Math.max(...times)+5*60000;
-  Object.assign($('timeline'),{min:String(min),max:String(max),step:'60000',value:String(max),disabled:false});
-  $('timeline-start').textContent=clockFmt.format(min);$('timeline-end').textContent=clockFmt.format(max);updateReference();
+  state.reference=times.length?Math.max(...times):null;
 }
-function fitEvents(){const coords=state.events.filter(e=>e.status==='located').map(e=>[e.lat,e.lon]);if(coords.length)map.stop().fitBounds(coords,{paddingTopLeft:window.innerWidth>760?[390,220]:[30,175],paddingBottomRight:window.innerWidth>760?[320,80]:[30,165],maxZoom:10,animate:false});else toast('Пока нет сообщений с подтверждённым местом.');}
-function installEvents(events,label){state.events=events;updateCounts();initTimeline();drawMarkers();renderJournal();$('dataset-label').textContent=label;fitEvents();}
+function fitEvents(){const coords=state.events.filter(e=>e.status==='located').map(e=>[e.lat,e.lon]);if(coords.length)map.stop().fitBounds(coords,{paddingTopLeft:window.innerWidth>760?[390,60]:[30,40],paddingBottomRight:window.innerWidth>760?[320,80]:[30,100],maxZoom:10,animate:false});else toast('Пока нет сообщений с подтверждённым местом.');}
+function installEvents(events,label){state.events=events;updateCounts();setReferenceFromEvents();drawMarkers();renderJournal();$('dataset-label').textContent=label;fitEvents();}
 async function loadDemo(){
   const data=await fetch('data/demo.json').then(r=>{if(!r.ok)throw new Error('Не удалось загрузить пример');return r.json();});
   const events=data.map((r,i)=>C.analyzeRecord(r,state.index,{baseDate:$('base-date').value,engine:'Вымышленный пример'},i+1)).filter(Boolean);
   state.file=null;$('file-input').value='';$('file-title').textContent='Выберите или перетащите файл';$('file-subtitle').textContent='TXT, CSV, JSON, DOCX или ZIP · до 10 МБ';$('analyze-btn').disabled=true;
   clearTimeout(state.toastTimer);$('toast').hidden=true;
-  installEvents(events,'Демонстрационные данные · вымышленные события');setStatus('Пример открыт. Загрузите свой файл для анализа.');
+  installEvents(events,'Демонстрационные данные · вымышленные события');setStatus('Выберите файл для анализа.');
 }
 function selectFile(file){
   if(state.busy)return;
@@ -123,7 +118,7 @@ async function analyze(){
       if(!llm&&i%10===0)await new Promise(resolve=>setTimeout(resolve,0));
     }
     if(!events.length)throw new Error('Не найдены тексты сообщений. В CSV и JSON используйте поле text, message или «сообщение».');
-    installEvents(events,`${state.file.name} · ${llm?'локальная LLM':'разбор по справочнику'} · архивный анализ`);
+    installEvents(events,`${state.file.name} · ${llm?'локальная LLM':'разбор по справочнику'}`);
     setStatus(`Готово: ${events.length} сообщений · ${(performance.now()-started>1000)?Math.round((performance.now()-started)/1000)+' с':'менее 1 с'}. Неоднозначные места — в журнале.`);
     if(events.some(e=>e.status==='review'))toast('Некоторым сообщениям нужно уточнить место. Откройте «Проверить».');
   }catch(error){console.error(error);setStatus(error.name==='TimeoutError'?'Модель не ответила вовремя. Проверьте Ollama и повторите анализ.':error.message==='Failed to fetch'?'Локальная LLM не подключена. Запустите start-local.cmd, затем проверьте соединение в настройках.':error.message,true);}
@@ -151,14 +146,14 @@ function renderJournal(){
 $('file-input').onchange=e=>selectFile(e.target.files[0]);
 $('dropzone').tabIndex=0;$('dropzone').setAttribute('role','button');$('dropzone').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('file-input').click();}});
 for(const type of ['dragover','dragleave','drop'])$('dropzone').addEventListener(type,e=>{e.preventDefault();$('dropzone').classList.toggle('dragover',type==='dragover');if(type==='drop')selectFile(e.dataTransfer.files[0]);});
-$('analyze-btn').onclick=analyze;$('demo-btn').onclick=()=>loadDemo().catch(e=>setStatus(e.message,true));
-$('timeline').oninput=updateReference;$('fit-btn').onclick=fitEvents;$('russia-btn').onclick=()=>map.setView([62,86],3);
+$('analyze-btn').onclick=analyze;
+$('fit-btn').onclick=fitEvents;$('russia-btn').onclick=()=>map.setView([62,86],3);
 function openJournal(filter='all'){state.filter=filter;$('journal').hidden=false;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('selected',b.dataset.filter===filter));renderJournal();}
-$('open-journal').onclick=()=>openJournal();$('review-btn').onclick=()=>openJournal('review');$('close-journal').onclick=()=>{$('journal').hidden=true;};$('search').oninput=renderJournal;
+$('open-journal').onclick=()=>openJournal();$('close-journal').onclick=()=>{$('journal').hidden=true;};$('search').oninput=renderJournal;
 document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>openJournal(b.dataset.filter));
-$('settings-btn').onclick=()=>{$('settings').showModal();};$('settings').addEventListener('close',()=>{try{const url=getLocalURL();localStorage.setItem('svodka-prefs',JSON.stringify({url,model:$('model-name').value.trim()}));}catch(e){toast(e.message);}});
+$('settings-btn').onclick=()=>{$('settings').showModal();};$('settings').addEventListener('close',()=>{try{const url=getLocalURL();localStorage.setItem('svodka-prefs',JSON.stringify({url,model:$('model-name').value.trim(),engine:$('engine').value}));}catch(e){toast(e.message);}});
 $('check-model').onclick=async()=>{try{$('model-status').textContent='Подключение…';const res=await fetch(getLocalURL()+'/api/health',{signal:AbortSignal.timeout(5000)});const data=await res.json();if(!res.ok)throw new Error(data.error||'Ollama недоступна');$('model-status').textContent=`Подключено · доступны: ${data.models.join(', ')||'модели не установлены'}`;}catch{$('model-status').textContent='Не удалось подключиться. Запустите start-local.cmd и убедитесь, что Ollama работает.';}};
-$('export-btn').onclick=()=>{const blob=new Blob([JSON.stringify({version:1,mode:'archive',timezone:'Asia/Yekaterinburg',reference:new Date(state.reference).toISOString(),events:state.events},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='svodka-events.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);};
+$('export-btn').onclick=()=>{const blob=new Blob([JSON.stringify({version:1,mode:'archive',timezone:'Asia/Yekaterinburg',reference:state.reference===null?null:new Date(state.reference).toISOString(),events:state.events},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='svodka-events.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);};
 window.addEventListener('keydown',e=>{if(e.key==='Escape')$('journal').hidden=true;});
 async function loadSettlements(){
   const response=await fetch('data/settlements.json');if(!response.ok)throw new Error('Не удалось загрузить справочник');
