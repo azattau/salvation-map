@@ -1,7 +1,7 @@
-/* global L, fflate, IncidentCore */
+/* global ReportMap, fflate, IncidentCore */
 'use strict';
 const C = IncidentCore, $ = id => document.getElementById(id);
-const state = {events:[], index:null, reference:Date.now(), file:null, filter:'all',busy:false,modelReady:false};
+const state = {events:[], index:null, reference:null, file:null, filter:'all',busy:false,modelReady:false};
 const fmt = new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Yekaterinburg',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 const safeText = (tag,text,className) => { const el=document.createElement(tag); el.textContent=text; if(className) el.className=className; return el; };
 const dateInZone = date => new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Yekaterinburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
@@ -15,13 +15,11 @@ try { const prefs=JSON.parse(localStorage.getItem('svodka-prefs') || '{}'); if(p
 function toast(text) { $('toast').textContent=text; $('toast').hidden=false; clearTimeout(state.toastTimer); state.toastTimer=setTimeout(()=>{$('toast').hidden=true;},5000); }
 function setStatus(text,error=false){$('analysis-status').textContent=text;$('analysis-status').classList.toggle('error',error);}
 function setBusy(busy){state.busy=busy;$('analyze-btn').disabled=busy||!state.file||!state.index;$('file-input').disabled=busy;$('engine').disabled=busy;$('base-date').disabled=busy;$('analysis-progress').hidden=!busy;}
-const map = L.map('map',{zoomControl:false,minZoom:3,preferCanvas:true}).setView([55,58],6);
-L.control.zoom({position:'topright'}).addTo(map);
-const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(map);
 let tileErrors=0;
-tiles.on('tileerror',()=>{ if(++tileErrors>4){$('map-error').textContent='Не удалось загрузить фон карты. Проверьте интернет. Сообщения и журнал остаются доступны.';$('map-error').hidden=false;} });
-tiles.on('tileload',()=>{$('map-error').hidden=true;tileErrors=0;});
-const markers = L.layerGroup().addTo(map);
+const map = new ReportMap('map',{center:[55,58],zoom:6,minZoom:3,maxZoom:19,
+  onTileError:()=>{if(++tileErrors>4){$('map-error').textContent='Не удалось загрузить фон карты. Проверьте интернет. Сообщения и журнал остаются доступны.';$('map-error').hidden=false;}},
+  onTileLoad:()=>{$('map-error').hidden=true;tileErrors=0;}
+});
 function eventTime(event){return event.timestamp===null?'Время не указано':fmt.format(event.timestamp);}
 function popupFor(events){
   const el=document.createElement('div'); const first=events[0];
@@ -37,31 +35,22 @@ function popupFor(events){
   return el;
 }
 function drawMarkers(){
-  markers.clearLayers();const grouped=new Map();
+  const grouped=new Map(),items=[];
   for(const e of state.events.filter(e=>e.status==='located')){const key=`${e.lat},${e.lon}`;if(!grouped.has(key))grouped.set(key,[]);grouped.get(key).push(e);}
   for(const group of grouped.values()){
     const sorted=group.filter(e=>e.timestamp!==null&&e.timestamp<=state.reference).sort((a,b)=>b.timestamp-a.timestamp);
     const event=sorted[0]||group.find(e=>e.timestamp!==null)||group[0];const f=C.freshness(event.timestamp,state.reference);
-    const pin=document.createElement('span');pin.className='pin-dot';pin.style.setProperty('--pin-color',f.color);
-    const wrap=document.createElement('div');wrap.append(pin);if(group.length>1)wrap.append(safeText('span',String(group.length),'pin-count'));
-    const marker=L.marker([event.lat,event.lon],{icon:L.divIcon({className:'event-pin',html:wrap,iconSize:[19,19],iconAnchor:[9,9]}),title:`${event.place}: ${group.length} сообщ., ${f.label}`});
-    marker.bindPopup(()=>popupFor(group),{maxWidth:330,minWidth:250,maxHeight:370});marker.addTo(markers);
+    items.push({id:`${event.lat},${event.lon}`,lat:event.lat,lon:event.lon,color:f.color,count:group.length,title:`${event.place}: ${group.length} сообщ., ${f.label}`,popup:()=>popupFor(group)});
   }
+  map.setMarkers(items);
 }
 function updateCounts(){$('journal-count').textContent=state.events.length;}
 function setReferenceFromEvents(){
   const times=state.events.map(e=>e.timestamp).filter(t=>t!==null&&Number.isFinite(t));
   state.reference=times.length?Math.max(...times):null;
 }
-function fitEvents(){const coords=state.events.filter(e=>e.status==='located').map(e=>[e.lat,e.lon]);if(coords.length)map.stop().fitBounds(coords,{paddingTopLeft:window.innerWidth>760?[390,60]:[30,40],paddingBottomRight:window.innerWidth>760?[320,80]:[30,100],maxZoom:10,animate:false});else toast('Пока нет сообщений с подтверждённым местом.');}
+function fitEvents(){const coords=state.events.filter(e=>e.status==='located').map(e=>[e.lat,e.lon]);if(coords.length)map.fitPoints(coords,{paddingTopLeft:window.innerWidth>760?[390,60]:[30,40],paddingBottomRight:window.innerWidth>760?[320,80]:[30,100],maxZoom:10});else toast('Пока нет сообщений с подтверждённым местом.');}
 function installEvents(events,label){state.events=events;updateCounts();setReferenceFromEvents();drawMarkers();renderJournal();$('dataset-label').textContent=label;fitEvents();}
-async function loadDemo(){
-  const data=await fetch('data/demo.json').then(r=>{if(!r.ok)throw new Error('Не удалось загрузить пример');return r.json();});
-  const events=data.map((r,i)=>C.analyzeRecord(r,state.index,{baseDate:$('base-date').value,engine:'Вымышленный пример'},i+1)).filter(Boolean);
-  state.file=null;$('file-input').value='';$('file-title').textContent='Выберите или перетащите файл';$('file-subtitle').textContent='TXT, CSV, JSON, DOCX или ZIP · до 10 МБ';$('analyze-btn').disabled=true;
-  clearTimeout(state.toastTimer);$('toast').hidden=true;
-  installEvents(events,'Демонстрационные данные · вымышленные события');setStatus('Выберите файл для анализа.');
-}
 function selectFile(file){
   if(state.busy)return;
   if(!file)return;
@@ -131,7 +120,7 @@ function renderJournal(){
   for(const e of found.slice(0,200)){
     const card=safeText('article','','journal-card');const head=document.createElement('header');head.append(safeText('strong',e.place||'Место требует проверки'),safeText('time',eventTime(e)));card.append(head,safeText('p',e.raw));
     card.append(safeText('span',e.status==='located'?(e.district||e.method):e.reason,'badge'+(e.status==='located'?' resolved':'')));
-    if(e.status==='located'){const btn=safeText('button','Показать на карте ↗');btn.onclick=()=>{$('journal').hidden=true;map.setView([e.lat,e.lon],12);markers.eachLayer(m=>{const p=m.getLatLng();if(p.lat===e.lat&&p.lng===e.lon)m.openPopup();});};card.append(document.createElement('br'),btn);}
+    if(e.status==='located'){const btn=safeText('button','Показать на карте ↗');btn.onclick=()=>{$('journal').hidden=true;map.setView([e.lat,e.lon],12);map.openMarkerAt(e.lat,e.lon);};card.append(document.createElement('br'),btn);}
     else{
       const input=document.createElement('input');input.className='search';input.placeholder='Найти место для уточнения';input.setAttribute('aria-label','Поиск населённого пункта для сообщения '+e.id);input.style.marginTop='10px';
       const select=document.createElement('select');select.setAttribute('aria-label','Населённый пункт для сообщения '+e.id);
@@ -165,4 +154,4 @@ async function loadSettlements(){
   }));
   const data=chunks.flat();if(data.length!==manifest.count)throw new Error('Справочник загружен не полностью');return data;
 }
-loadSettlements().then(data=>{state.index=C.buildIndex(data);setBusy(false);return loadDemo();}).catch(error=>setStatus(error.message,true));
+loadSettlements().then(data=>{state.index=C.buildIndex(data);setBusy(false);setStatus('Выберите файл для анализа.');}).catch(error=>setStatus(error.message,true));

@@ -5,8 +5,8 @@
   <meta name="theme-color" content="#121e32"><meta name="description" content="Карта сообщений: загрузка файлов, локальный разбор и проверка мест.">
   <title>Сводка · Карта сообщений</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/leaflet.css"><link rel="stylesheet" href="style.css?v=2">
-  <script src="assets/leaflet.js" defer></script><script src="assets/fflate.js" defer></script><script src="core.js" defer></script><script src="app.js?v=2" defer></script>
+  <link rel="stylesheet" href="style.css?v=3">
+  <script src="map-view.js?v=3" defer></script><script src="assets/fflate.js" defer></script><script src="core.js" defer></script><script src="app.js?v=3" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -26,7 +26,7 @@
       <progress id="analysis-progress" max="100" value="0" hidden></progress>
     </section>
     <section class="legend glass" aria-labelledby="legend-title"><div class="legend-heading"><h2 id="legend-title">Давность сообщения</h2><span>от последнего сообщения</span></div><div class="legend-grid"><span><i class="fresh"></i>До 15 минут</span><span><i class="recent"></i>15–60 минут</span><span><i class="old"></i>1–3 часа</span><span><i class="archive"></i>Более 3 часов</span><span><i class="unknown"></i>Время не указано</span></div><div class="legend-footer"><span>◎</span> Точка — место сообщения.<br>Координаты населённого пункта приблизительные.</div></section>
-    <div class="map-caption"><span class="caption-dot"></span><span id="dataset-label">Демонстрационные данные · вымышленные события</span></div>
+    <div class="map-caption"><span class="caption-dot"></span><span id="dataset-label">Загрузите файл с сообщениями</span></div>
   </main>
   <aside id="journal" class="drawer" hidden aria-labelledby="journal-title"><div class="drawer-heading"><div><span class="eyebrow">ДАННЫЕ И ПРОВЕРКА</span><h2 id="journal-title">Журнал сообщений</h2></div><button id="close-journal" class="close-btn" aria-label="Закрыть журнал">×</button></div><input id="search" class="search" placeholder="Поиск по тексту или населённому пункту" aria-label="Поиск сообщений"><div class="journal-filters"><button data-filter="all" class="selected">Все</button><button data-filter="review">Проверить</button><button data-filter="located">На карте</button><button id="export-btn" class="export-btn">Скачать JSON ↗</button></div><div id="journal-list"></div></aside>
   <dialog id="settings"><form method="dialog">
@@ -35,7 +35,7 @@
     <p class="hint">Дата используется только там, где в тексте есть время без даты. Места ищутся в справочнике Башкортостана.</p>
     <p>Модель работает на вашем компьютере. Для подключения запустите файл <strong>start-local.cmd</strong> из проекта.</p>
     <label>Адрес локального помощника<input id="local-url" type="url" value="http://127.0.0.1:8765"></label><label>Модель Ollama<input id="model-name" value="qwen3:4b" autocomplete="off"></label>
-    <div class="settings-actions"><button id="check-model" type="button" class="secondary">Проверить подключение</button><button class="primary" value="save">Сохранить</button></div><p id="model-status" role="status">Ключ API не требуется. Тексты передаются только локальному помощнику.</p><p class="hint">Публичный сайт содержит интерфейс и вымышленные примеры. Для анализа с LLM нужен запущенный локальный помощник. Если браузер запросит доступ к локальной сети, разрешите подключение.</p>
+    <div class="settings-actions"><button id="check-model" type="button" class="secondary">Проверить подключение</button><button class="primary" value="save">Сохранить</button></div><p id="model-status" role="status">Ключ API не требуется. Тексты передаются только локальному помощнику.</p><p class="hint"> Для анализа с LLM нужен запущенный локальный помощник. Если браузер запросит доступ к локальной сети, разрешите подключение.</p>
   </form></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
 </body>
