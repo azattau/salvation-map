@@ -1,0 +1,22 @@
+{
+  "format": "svodka-settlements-v1",
+  "count": 4561,
+  "files": [
+    "settlements/part01.json",
+    "settlements/part02.json",
+    "settlements/part03.json",
+    "settlements/part04.json",
+    "settlements/part05.json",
+    "settlements/part06.json",
+    "settlements/part07.json",
+    "settlements/part08.json",
+    "settlements/part09.json",
+    "settlements/part10.json",
+    "settlements/part11.json",
+    "settlements/part12.json",
+    "settlements/part13.json",
+    "settlements/part14.json",
+    "settlements/part15.json",
+    "settlements/part16.json"
+  ]
+}

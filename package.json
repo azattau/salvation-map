@@ -1,0 +1,7 @@
+{
+  "name": "mchs-incident-map",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Карта архивных гражданских сообщений с локальным разбором через Ollama",
+  "scripts": { "test": "node --test tests/core.test.cjs" }
+}

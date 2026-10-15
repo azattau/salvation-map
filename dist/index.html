@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#121e32"><meta name="description" content="Демонстрационная карта архивных сообщений: загрузка файлов, локальный разбор, проверка мест и временная шкала.">
+  <title>Сводка · Карта сообщений</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/leaflet.css"><link rel="stylesheet" href="style.css">
+  <script src="assets/leaflet.js" defer></script><script src="assets/fflate.js" defer></script><script src="core.js" defer></script><script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Сводка — главная"><span class="brand-icon">С</span><span>СВОДКА<small>КАРТА СООБЩЕНИЙ</small></span></a>
+    <nav aria-label="Рабочее пространство"><span class="nav-item active">Карта событий</span><button id="open-journal" class="nav-item">Журнал <span id="journal-count">0</span></button></nav>
+    <div class="top-actions"><span class="archive-pill"><i></i> Архивный анализ</span><button id="settings-btn" class="icon-btn" aria-label="Настройки локальной модели" title="Локальная модель">⚙</button></div>
+  </header>
+  <main>
+    <div id="map" aria-label="Интерактивная карта сообщений"></div>
+    <div id="map-error" class="map-error" hidden></div>
+    <section class="workspace-heading" aria-label="Сводка загруженных данных">
+      <div class="eyebrow">РАБОЧЕЕ ПРОСТРАНСТВО <span> / </span> ДЕМОНСТРАЦИЯ</div>
+      <h1>Обстановка на карте</h1>
+      <p>Сообщения, места и время — в одном окне</p>
+      <div class="stats"><div><strong id="total-count">0</strong><span>сообщений</span></div><div><strong id="located-count">0</strong><span>на карте</span></div><button id="review-btn"><strong id="review-count">0</strong><span>нужно проверить ↗</span></button></div>
+    </section>
+    <section class="map-tools" aria-label="Управление картой"><button id="fit-btn" title="Показать все события" aria-label="Показать все события">⌖</button><button id="russia-btn" title="Обзор России" aria-label="Обзор России">РФ</button></section>
+    <section class="time-panel glass">
+      <div class="time-title"><span class="eyebrow">МОМЕНТ АНАЛИЗА</span><strong id="reference-label">—</strong></div>
+      <input id="timeline" aria-label="Момент архивного анализа" type="range" min="0" max="100" value="100" disabled>
+      <div class="time-labels"><span id="timeline-start">—</span><span>Екатеринбург · UTC+5</span><span id="timeline-end">—</span></div>
+    </section>
+    <section class="upload-panel glass" aria-labelledby="upload-title">
+      <div class="panel-heading"><span class="small-icon">↥</span><div><h2 id="upload-title">Загрузить сообщения</h2><p>Добавьте файл для анализа</p></div><span class="step">01 / 02</span></div>
+      <label id="dropzone" class="dropzone" for="file-input"><span class="file-icon">▤</span><strong id="file-title">Выберите или перетащите файл</strong><span id="file-subtitle">TXT, CSV, JSON, DOCX или ZIP · до 10 МБ</span><input id="file-input" type="file" accept=".txt,.csv,.json,.docx,.zip" hidden></label>
+      <div class="upload-options"><label>Дата сообщений без даты<input id="base-date" type="date" required></label><label>Способ разбора<select id="engine"><option value="llm">Локальная LLM · Ollama</option><option value="dictionary">Справочник · без LLM</option></select></label></div>
+      <p class="hint">Дата используется только там, где в тексте есть время без даты. Места ищутся в справочнике Башкортостана.</p>
+      <button id="analyze-btn" class="primary" disabled><span>✦</span> Анализ событий <span class="arrow">↗</span></button>
+      <div class="demo-row"><span>Хотите посмотреть пример?</span><button id="demo-btn">Открыть демоданные →</button></div>
+      <div id="analysis-status" class="analysis-status" role="status" aria-live="polite">Справочник загружается…</div>
+      <progress id="analysis-progress" max="100" value="0" hidden></progress>
+    </section>
+    <section class="legend glass" aria-labelledby="legend-title"><div class="legend-heading"><h2 id="legend-title">Давность сообщения</h2><span>от момента анализа</span></div><div class="legend-grid"><span><i class="fresh"></i>До 15 минут</span><span><i class="recent"></i>15–60 минут</span><span><i class="old"></i>1–3 часа</span><span><i class="archive"></i>Более 3 часов</span><span><i class="unknown"></i>Время не указано</span><span><i class="future"></i>Позже момента</span></div><div class="legend-footer"><span>◎</span> Точка — место сообщения.<br>Координаты населённого пункта приблизительные.</div></section>
+    <div class="map-caption"><span class="caption-dot"></span><span id="dataset-label">Демонстрационные данные · вымышленные события</span></div>
+  </main>
+  <aside id="journal" class="drawer" hidden aria-labelledby="journal-title"><div class="drawer-heading"><div><span class="eyebrow">ДАННЫЕ И ПРОВЕРКА</span><h2 id="journal-title">Журнал сообщений</h2></div><button id="close-journal" class="close-btn" aria-label="Закрыть журнал">×</button></div><input id="search" class="search" placeholder="Поиск по тексту или населённому пункту" aria-label="Поиск сообщений"><div class="journal-filters"><button data-filter="all" class="selected">Все</button><button data-filter="review">Проверить</button><button data-filter="located">На карте</button><button id="export-btn" class="export-btn">Скачать JSON ↗</button></div><div id="journal-list"></div></aside>
+  <dialog id="settings"><form method="dialog"><div class="drawer-heading"><div><span class="eyebrow">ЛОКАЛЬНАЯ ОБРАБОТКА</span><h2>Подключение модели</h2></div><button class="close-btn" aria-label="Закрыть настройки">×</button></div><p>Модель работает на вашем компьютере. Для подключения запустите файл <strong>start-local.cmd</strong> из проекта.</p><label>Адрес локального помощника<input id="local-url" type="url" value="http://127.0.0.1:8765"></label><label>Модель Ollama<input id="model-name" value="qwen3:4b" autocomplete="off"></label><div class="settings-actions"><button id="check-model" type="button" class="secondary">Проверить подключение</button><button class="primary" value="save">Сохранить</button></div><p id="model-status" role="status">Ключ API не требуется. Тексты передаются только локальному помощнику.</p><p class="hint">Публичный сайт содержит интерфейс и вымышленные примеры. Для анализа с LLM нужен запущенный локальный помощник. Если браузер запросит доступ к локальной сети, разрешите подключение.</p></form></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
